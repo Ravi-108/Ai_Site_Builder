@@ -13,26 +13,33 @@ export const auth = betterAuth({
   emailAndPassword: { 
     enabled: true, 
   },
+  
   user: {
-    deleteUser: {enabled: true}
+    deleteUser: { enabled: true },
+    // NEW: Exposing the credits column from Neon DB to your frontend!
+    additionalFields: {
+      credits: {
+        type: "number",
+        returned: true 
+      }
+    }
   },
   
-  trustedOrigins: TRUSTED_ORIGINS, // Fixed: Mapped the lowercase key to your uppercase variable
+  trustedOrigins: TRUSTED_ORIGINS, 
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET!,
   
   advanced: {
     cookies: {
-      session_token: { // Fixed: Changed 'Session_token' to 'session_token'
+      session_token: { 
         name: 'auth_session',
         attributes: {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          // Fixed: 'none' requires HTTPS. Localhost needs 'lax'.
           sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
           path: '/',
         }
       }
     }
-  } // Fixed: Added the missing closing bracket here!
+  } 
 });
