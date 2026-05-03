@@ -74,8 +74,19 @@ export const makeRevision = async (req: Request, res: Response) => {
     const promptEnhanceResponse = await openai.chat.completions.create({
       model: 'openrouter/free',
       messages: [
-        { role: 'system', content: 'You are an expert web designer. Enhance the user request into a precise prompt for a single-file React component named App that runs in browser Babel without imports, exports, require, or module syntax.' },
-        { role: 'user', content: `User's request: "${message}"` },
+        {
+          role: 'system',
+          content: `You are an expert React and Tailwind CSS developer. 
+    Your goal is to enhance the user's request into a highly detailed technical prompt.
+    
+    CRITICAL INSTRUCTIONS:
+    1. The final output must be a single-file React component named 'App'.
+    2. It must use Tailwind CSS for all styling.
+    3. NO IMPORTS: Assume 'React', 'useState', 'useEffect', etc., are already available globally.
+    4. NO EXPORTS: Do not use 'export default' or 'module.exports'. Just define the function 'App'.
+    5. The prompt you generate should ask for ONLY the code inside the function, with no markdown code blocks or conversational text.`
+        },
+        { role: 'user', content: `Enhance this request for a React component: "${message}"` },
       ],
     });
 
