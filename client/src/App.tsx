@@ -8,7 +8,7 @@ import Preview from './pages/Preview'
 import Community from './pages/Community'
 import Projects from './pages/Projects'
 import MyProjects from './pages/MyProjects'
-import View from './pages/View'
+import View from './pages/view'
 import Navbar from './components/Navbar'
 import AuthPage from './pages/Auth/AuthPage';
 import Settings from './pages/Settings';
@@ -30,7 +30,7 @@ const App = () => {
        <Route path ='/preview/:projectId' element = {<Preview />} />
        <Route path ='/preview/:projectId/:versionId' element = {<Preview />} />
        <Route path ='/community' element = {<Community />} />
-       <Route path ='/view/:projectId' element = {<View />} />
+       <Route path ='/view/:projectId' element = {<view />} />
        <Route path="/auth/:pathname" element={<AuthPage />} />
        <Route path='/account/settings' element={<Settings/>}/>
        <Route path="/builder/:projectId" element={<Builder />} />
