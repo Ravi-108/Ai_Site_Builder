@@ -1,12 +1,11 @@
 import axios from 'axios';
 
-// Create a custom Axios instance
 const API = axios.create({
-  // Point it to your Express backend
-  baseURL: import.meta.env.VITE_BASE_URL || 'http://localhost:3000',
+  // 1. Point this to your LIVE Render backend! 
+  // (You can also use an environment variable here if you prefer)
+  baseURL: import.meta.env.VITE_BASEURL || "https://ai-site-builder-nmc2.onrender.com", 
   
-  // CRITICAL: This line tells Axios to send your Better Auth cookies with every request!
-  // Without this, the 'protect' middleware on your server will always say "Unauthorized"
+  // 2. THIS IS CRITICAL: It forces Axios to send your secure login cookie to Render
   withCredentials: true, 
 });
 
