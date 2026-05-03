@@ -1,54 +1,17 @@
-import React, { useState, useEffect } from 'react'; // ✅ Fixed imports
+import React, { useState } from 'react'; 
 import { assets } from '../assets/assets';
 import { Link, useNavigate } from 'react-router-dom';
 import { authClient } from '@/lib/auth-client';
 import { UserButton } from '@daveyplate/better-auth-ui';
 import UserProfile from './UserProfile';
-import API from '@/config/axios';
-import { toast } from 'sonner'; // ✅ Changed to sonner to match the tutorial
+import { toast } from 'sonner';
 
 function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [credits, setCredits] = useState(0);
   const navigate = useNavigate();
 
+  // Better Auth automatically brings the credits with the session!
   const { data: session } = authClient.useSession();
-
-  // --- FETCH CREDITS FROM BACKEND ---
-  // --- BULLETPROOF FETCH ---
-  const getCredits = async () => {
-    try {
-      const { data } = await API.get('/api/user/credits');
-      
-      // Only update state if the value actually changed!
-      setCredits((prev) => prev !== data.credits ? data.credits : prev);
-      
-    } catch (error: any) {
-      console.log("Credit fetch error:", error);
-      // Removed the toast.error here just in case it was causing re-renders on failure
-    }
-  };
-
-  useEffect(() => {
-    // A flag to prevent state updates if the component unmounts
-    let isMounted = true; 
-
-    if (session?.user?.id) {
-      // Small delay to ensure Better Auth is fully settled before fetching
-      setTimeout(() => {
-        if (isMounted) getCredits();
-      }, 500); 
-    }
-
-    return () => { isMounted = false };
-  }, [session?.user?.id]);
-
-  // --- RUN THIS WHEN USER LOGS IN ---
-  // useEffect(() => {
-  //   if (session?.user) {
-  //     getCredits();
-  //   }
-  // }, [session?.user.id]);
 
   return (
     <>
@@ -71,10 +34,10 @@ function Navbar() {
               Get started
             </button>
             ) :  (
-              // ✅ NEW: Credits Badge + Profile
               <div className="flex items-center gap-4">
                 <button className="px-4 py-1.5 max-sm:text-sm bg-white/5 border border-white/10 hover:bg-white/10 transition-colors rounded-full flex items-center gap-2 text-indigo-300 font-medium">
-                  Credits: <span className="text-white">{credits}</span>
+                  {/* Pulling the credits directly from the session data! Fallback to 0 if loading */}
+                  Credits: <span className="text-white">{(session?.user as any)?.credits || 0}</span>
                 </button>
                 <UserButton />
               </div>
