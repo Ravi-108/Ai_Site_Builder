@@ -107,6 +107,7 @@ export const makeRevision = async (req: Request, res: Response) => {
         { role: 'system', content: 'You are an expert React developer. Modify the provided component and return ONLY runnable JSX/React for a single component named App. Do not include import/export/require/module syntax, ReactDOM.render/createRoot, or markdown code fences.' },
         { role: 'user', content: `Here is the current website code: "${currentProject.current_code}". The user wants this change: "${enhancedPrompt}"` },
       ],
+      max_tokens: 4000,
     });
 
     let code = codeGenerationResponse.choices[0].message.content || '';
