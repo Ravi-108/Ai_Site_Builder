@@ -2,31 +2,79 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma.js';
 import openai from '../config/openai.js';
 
-const sanitizeAiReactCode = (rawCode: string) => {
+const sanitizeAiHtmlCode = (rawCode: string): string => {
   let code = rawCode || '';
 
-  // Remove markdown wrappers if present
-  code = code.replace(/^```(?:html|tsx|jsx|js)?\s*/i, '').replace(/```\s*$/i, '').trim();
-
-  // Remove import/export/module lines that break iframe runtime execution
-  code = code.replace(/^\s*import\s+[^\n;]+(?:;\s*)?$/gim, '');
-  code = code.replace(/^\s*import\s*['"][^'"]+['"]\s*;?\s*$/gim, '');
-  code = code.replace(/^\s*export\s+default\s+/gim, '');
-  code = code.replace(/^\s*export\s+(const|function|class)\s+/gim, '$1 ');
-  code = code.replace(/^\s*module\.exports\s*=.*$/gim, '');
-  code = code.replace(/^\s*(?:const|let|var)\s+[^\n=]+\s*=\s*require\([^\)]*\)\s*;?\s*$/gim, '');
-  code = code.replace(/^\s*require\([^\)]*\)\s*;?\s*$/gim, '');
-
-  const hasComponentDeclaration =
-    /\b(?:const|function|class)\s+\w+/m.test(code) ||
-    /=>\s*\(/m.test(code);
-
-  // If the model returns only JSX markup/fragments, wrap it into App.
-  if (code.trim() && !hasComponentDeclaration) {
-    code = `const App = () => (\n${code}\n);`;
+  // 1. Try to extract HTML from markdown code fences (```html ... ```)
+  const fenceMatch = code.match(/```(?:html|htm)?\s*\n([\s\S]*?)```/i);
+  if (fenceMatch) {
+    code = fenceMatch[1].trim();
+  } else {
+    // Remove any leading/trailing fence markers without content match
+    code = code.replace(/^```(?:html|htm)?\s*/i, '').replace(/```\s*$/i, '').trim();
   }
 
-  return code.trim();
+  // 2. If the AI returned a full HTML document, validate it has actual content
+  if (/<!DOCTYPE\s+html/i.test(code) || /^\s*<html[\s>]/i.test(code)) {
+    // Check if the document has actual visible body content (not just CSS/JS)
+    const hasBodyContent = /<body[\s>][\s\S]*?<(h[1-6]|p|div|section|header|nav|main|article|span|img|ul|ol|table|form)\b/i.test(code);
+    if (!hasBodyContent) {
+      // The HTML is structurally empty — only has <style> and <script> but no visible elements
+      return '';  // Return empty string to trigger the "AI failed" check downstream
+    }
+    return code.trim();
+  }
+
+  // 3. If the response is mostly plain text (AI returned commentary instead of code),
+  //    try to find embedded HTML within it
+  const embeddedHtml = code.match(/(<!DOCTYPE\s+html[\s\S]*<\/html>)/i);
+  if (embeddedHtml) {
+    return embeddedHtml[1].trim();
+  }
+
+  // 4. Check if the output contains enough HTML tags to be valid markup
+  const htmlTagCount = (code.match(/<[a-z][a-z0-9]*[\s>]/gi) || []).length;
+  const totalLength = code.length;
+
+  // If less than 3 HTML tags in a long response, it's likely commentary, not code
+  if (htmlTagCount < 3 && totalLength > 200) {
+    // Return a fallback error page
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #111827; display: flex; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    .card { text-align: center; padding: 2rem; background: #1f2937; border-radius: 1rem; box-shadow: 0 25px 50px rgba(0,0,0,0.25); max-width: 28rem; }
+    .icon { font-size: 3.75rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.5rem; font-weight: bold; color: #fff; margin-bottom: 0.5rem; }
+    .desc { color: #9ca3af; margin-bottom: 1rem; }
+    .tip { font-size: 0.875rem; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">⚠️</div>
+    <h1>Generation Failed</h1>
+    <p class="desc">The AI returned a text response instead of HTML code. Please try again with a more specific prompt.</p>
+    <p class="tip">Tip: Try prompts like "Build a restaurant landing page" or "Create a portfolio website"</p>
+  </div>
+</body>
+</html>`.trim();
+  }
+
+  // 5. It has some HTML tags — wrap the snippet in a full document
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+${code}
+</body>
+</html>`.trim();
 };
 
 // --- 1. MAKE REVISION (Update website using AI prompt) ---
@@ -36,7 +84,7 @@ export const makeRevision = async (req: Request, res: Response) => {
 
   try {
     const projectId = req.params.projectId as string;
-    const { message } = req.body;
+    const message = req.body.message || req.body.prompt;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
@@ -76,17 +124,19 @@ export const makeRevision = async (req: Request, res: Response) => {
       messages: [
         {
           role: 'system',
-          content: `You are an expert React and Tailwind CSS developer. 
-    Your goal is to enhance the user's request into a highly detailed technical prompt.
-    
-    CRITICAL INSTRUCTIONS:
-    1. The final output must be a single-file React component named 'App'.
-    2. It must use Tailwind CSS for all styling.
-    3. NO IMPORTS: Assume 'React', 'useState', 'useEffect', etc., are already available globally.
-    4. NO EXPORTS: Do not use 'export default' or 'module.exports'. Just define the function 'App'.
-    5. The prompt you generate should ask for ONLY the code inside the function, with no markdown code blocks or conversational text.`
+          content: `You are an expert web developer and designer. Enhance the user's request into a highly detailed technical prompt for modifying an existing website.
+
+CRITICAL INSTRUCTIONS:
+1. The final output must be a COMPLETE, self-contained HTML file.
+2. Use ONLY vanilla HTML, CSS, and JavaScript. NO React, NO JSX, NO frameworks, NO Tailwind, NO Bootstrap, NO external libraries.
+3. All styling must be in <style> tags using standard CSS.
+4. All JavaScript must be inside <script> tags within the HTML.
+5. Emphasize mobile-first responsive design with @media queries for tablet (768px) and desktop (1024px).
+6. Emphasize beautiful modern design: professional color palette, Google Fonts, smooth transitions, gradients, shadows.
+7. All buttons, links, forms, and navigation must be fully functional with JavaScript.
+8. The prompt you generate should ask for ONLY the complete HTML code, with no markdown or conversational text.`
         },
-        { role: 'user', content: `Enhance this request for a React component: "${message}"` },
+        { role: 'user', content: `Enhance this website modification request: "${message}"` },
       ],
     });
 
@@ -104,8 +154,21 @@ export const makeRevision = async (req: Request, res: Response) => {
     const codeGenerationResponse = await openai.chat.completions.create({
       model: 'openrouter/free',
       messages: [
-        { role: 'system', content: 'You are an expert React developer. Modify the provided component and return ONLY runnable JSX/React for a single component named App. Do not include import/export/require/module syntax, ReactDOM.render/createRoot, or markdown code fences.' },
-        { role: 'user', content: `Here is the current website code: "${currentProject.current_code}". The user wants this change: "${enhancedPrompt}"` },
+        { role: 'system', content: `You are a code generator. You ONLY output raw HTML code. You NEVER output explanations, suggestions, or commentary.
+
+Your response must start with <!DOCTYPE html> and end with </html>. Nothing else.
+
+RULES:
+- Return a COMPLETE HTML document starting with <!DOCTYPE html>.
+- Use ONLY vanilla HTML, CSS, and JavaScript. NO React, NO JSX, NO frameworks, NO Tailwind CSS, NO Bootstrap, NO external CSS or JS libraries.
+- All CSS must be in <style> tags inside the <head>.
+- All JavaScript must be in <script> tags at the end of <body>.
+- RESPONSIVE DESIGN: Use mobile-first CSS. Add @media (min-width: 768px) for tablets and @media (min-width: 1024px) for desktops. Use CSS flexbox and grid. The layout must look great on phones, tablets, and desktops.
+- BEAUTIFUL DESIGN: Use a professional, harmonious color palette. Import a Google Font via <link> (e.g., Inter, Poppins, or Roboto). Use generous padding/margin, border-radius, box-shadow, linear-gradient backgrounds, smooth transitions (transition: all 0.3s ease), and hover effects on all clickable elements.
+- FUNCTIONAL: Every button must have an onclick handler. Every form must have onsubmit with preventDefault and show feedback. Every navigation link must scroll smoothly to its section using anchor IDs. Include a working hamburger menu for mobile that toggles visibility.
+- NEVER include markdown, code fences, or any text that is not HTML code.
+- Your entire response must be valid HTML. Do not write a single word outside of HTML tags.` },
+        { role: 'user', content: `Modify this website:\n\n${currentProject.current_code}\n\nChange requested: "${enhancedPrompt}"\n\nRespond with ONLY the complete modified HTML. Start your response with <!DOCTYPE html>` },
       ],
       max_tokens: 4000,
     });
@@ -125,8 +188,19 @@ export const makeRevision = async (req: Request, res: Response) => {
     }
 
     // Sanitize generated code for iframe runtime compatibility
-    code = sanitizeAiReactCode(code);
+    code = sanitizeAiHtmlCode(code);
 
+    // If sanitizer detected structurally empty HTML (no visible body content), treat as failure
+    if (!code) {
+      await prisma.conversation.create({
+        data: { role: 'assistant', content: 'The AI generated an incomplete website with no visible content. Please try again.', projectId },
+      });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { credits: { increment: 5 } },
+      });
+      return res.status(500).json({ message: 'AI generated empty HTML. Please try again.' });
+    }
     // Create a new version history checkpoint
     const version = await prisma.version.create({
       data: {
@@ -146,7 +220,7 @@ export const makeRevision = async (req: Request, res: Response) => {
       data: { current_code: code, current_version_index: version.id },
     });
 
-    res.json({ message: 'Changes made successfully' });
+    res.json({ message: 'Changes made successfully', code });
 
   } catch (error: any) {
     console.log(error);
