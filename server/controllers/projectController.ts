@@ -141,11 +141,11 @@ export const makeRevision = async (req: Request, res: Response) => {
 
 CRITICAL INSTRUCTIONS:
 1. The final output must be a COMPLETE, self-contained HTML file.
-2. Use ONLY vanilla HTML, CSS, and JavaScript. NO React, NO JSX, NO frameworks, NO Tailwind, NO Bootstrap, NO external libraries.
-3. All styling must be in <style> tags using standard CSS.
+2. Use ONLY vanilla HTML, Tailwind CSS via CDN, and JavaScript. NO React, NO JSX.
+3. You MUST include Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>) in the <head>.
 4. All JavaScript must be inside <script> tags within the HTML.
-5. Emphasize mobile-first responsive design with @media queries for tablet (768px) and desktop (1024px).
-6. Emphasize beautiful modern design: professional color palette, Google Fonts, smooth transitions, gradients, shadows.
+5. Emphasize mobile-first responsive design using Tailwind classes (sm:, md:, lg:).
+6. Emphasize extremely beautiful, modern, and premium design: professional color palette, modern Google Fonts (e.g., Inter, Outfit), smooth hover transitions, gradients, and soft shadows.
 7. All buttons, links, forms, and navigation must be fully functional with JavaScript.
 8. The prompt you generate should ask for ONLY the complete HTML code, with no markdown or conversational text.`
         },
@@ -175,11 +175,11 @@ Your response must start with <!DOCTYPE html> and end with </html>. Nothing else
 
 RULES:
 - Return a COMPLETE HTML document starting with <!DOCTYPE html>.
-- Use ONLY vanilla HTML, CSS, and JavaScript. NO React, NO JSX, NO frameworks, NO Tailwind CSS, NO Bootstrap, NO external CSS or JS libraries.
-- All CSS must be in <style> tags inside the <head>.
+- Use ONLY vanilla HTML, Tailwind CSS, and JavaScript. You MUST include Tailwind via CDN: <script src="https://cdn.tailwindcss.com"></script> inside the <head>. NO React, NO JSX.
+- All custom CSS (if absolutely needed) must be in <style> tags inside the <head>, but prefer Tailwind classes.
 - All JavaScript must be in <script> tags at the end of <body>.
-- RESPONSIVE DESIGN: Use mobile-first CSS. Add @media (min-width: 768px) for tablets and @media (min-width: 1024px) for desktops. Use CSS flexbox and grid. The layout must look great on phones, tablets, and desktops.
-- BEAUTIFUL DESIGN: Use a professional, harmonious color palette. Import a Google Font via <link> (e.g., Inter, Poppins, or Roboto). Use generous padding/margin, border-radius, box-shadow, linear-gradient backgrounds, smooth transitions (transition: all 0.3s ease), and hover effects on all clickable elements.
+- RESPONSIVE DESIGN: Use mobile-first Tailwind classes. The layout must look great on phones, tablets, and desktops. Use Flexbox and Grid.
+- EXTREMELY BEAUTIFUL DESIGN: The website must look modern, professional, and premium. Use a cohesive, elegant color palette. Import a modern Google Font via <link> (e.g., Inter, Outfit, or Plus Jakarta Sans) and apply it to the body. Use generous padding/margin, rounded corners (rounded-xl, rounded-2xl), soft drop shadows (shadow-lg, shadow-xl), subtle gradients (bg-gradient-to-r), and smooth hover effects (transition-all duration-300 hover:scale-105) on all interactive elements.
 - FUNCTIONAL: Every button must have an onclick handler. Every form must have onsubmit with preventDefault and show feedback. Every navigation link must scroll smoothly to its section using anchor IDs. Include a working hamburger menu for mobile that toggles visibility.
 - NEVER include markdown, code fences, or any text that is not HTML code.
 - Your entire response must be valid HTML. Do not write a single word outside of HTML tags.` },

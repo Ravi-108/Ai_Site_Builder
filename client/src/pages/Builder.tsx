@@ -176,7 +176,8 @@ function Builder() {
               id: e.target.id,
               tagName: e.target.tagName,
               textContent: e.target.innerText,
-              className: e.target.className
+              className: e.target.className,
+              src: e.target.tagName === 'IMG' ? e.target.src : undefined
             }
           }, '*');
         });
@@ -186,8 +187,9 @@ function Builder() {
           if (event.data.type === 'UPDATE_ELEMENT') {
             const el = document.getElementById(event.data.payload.id);
             if (el) {
-              if (event.data.payload.textContent !== undefined) el.innerText = event.data.payload.textContent;
+              if (event.data.payload.textContent !== undefined && el.tagName !== 'IMG') el.innerText = event.data.payload.textContent;
               if (event.data.payload.className !== undefined) el.className = event.data.payload.className;
+              if (event.data.payload.src !== undefined && el.tagName === 'IMG') el.src = event.data.payload.src;
             }
           }
         });
@@ -300,7 +302,8 @@ ${safeCode}
                   id: e.target.id,
                   tagName: e.target.tagName,
                   textContent: e.target.innerText,
-                  className: e.target.className
+                  className: e.target.className,
+                  src: e.target.tagName === 'IMG' ? e.target.src : undefined
                 }
               }, '*');
             });
@@ -310,8 +313,9 @@ ${safeCode}
               if (event.data.type === 'UPDATE_ELEMENT') {
                 const el = document.getElementById(event.data.payload.id);
                 if (el) {
-                  if (event.data.payload.textContent !== undefined) el.innerText = event.data.payload.textContent;
+                  if (event.data.payload.textContent !== undefined && el.tagName !== 'IMG') el.innerText = event.data.payload.textContent;
                   if (event.data.payload.className !== undefined) el.className = event.data.payload.className;
+                  if (event.data.payload.src !== undefined && el.tagName === 'IMG') el.src = event.data.payload.src;
                 }
               }
             });
@@ -463,15 +467,44 @@ ${safeCode}
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Text Content</label>
-                  <textarea 
-                    value={selectedElement.textContent}
-                    onChange={(e) => handleManualUpdate('textContent', e.target.value)}
-                    className="w-full bg-black border border-white/10 rounded-md p-2 text-sm text-white focus:border-indigo-500 outline-none resize-none"
-                    rows={3}
-                  />
-                </div>
+                {selectedElement.tagName === 'IMG' ? (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Image URL (src)</label>
+                    <input 
+                      type="text"
+                      value={selectedElement.src || ''}
+                      onChange={(e) => handleManualUpdate('src', e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-md p-2 text-sm text-white focus:border-indigo-500 outline-none mb-3"
+                    />
+                    <label className="block text-xs text-gray-400 mb-1">Presets Gallery</label>
+                    <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                      {[
+                        "https://images.unsplash.com/photo-1498050108023-c5249f4df085",
+                        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
+                        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40",
+                        "https://images.unsplash.com/photo-1551288049-bebda4e38f71"
+                      ].map((imgUrl, i) => (
+                        <img 
+                          key={i} 
+                          src={imgUrl + "?w=100&h=100&fit=crop"} 
+                          onClick={() => handleManualUpdate('src', imgUrl + "?w=800&q=80")}
+                          className="w-12 h-12 rounded cursor-pointer hover:ring-2 ring-indigo-500 object-cover shrink-0" 
+                          title="Click to apply"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Text Content</label>
+                    <textarea 
+                      value={selectedElement.textContent || ''}
+                      onChange={(e) => handleManualUpdate('textContent', e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-md p-2 text-sm text-white focus:border-indigo-500 outline-none resize-none"
+                      rows={3}
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Tailwind Classes</label>
                   <textarea 
