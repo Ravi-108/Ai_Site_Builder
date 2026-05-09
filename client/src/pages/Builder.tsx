@@ -11,6 +11,7 @@ function Builder() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [saving, setSaving] = useState(false);
+  const [model, setModel] = useState('default');
   const [prompt, setPrompt] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
@@ -102,7 +103,8 @@ function Builder() {
       setIsUpdating(true);
       const { data } = await API.post(`/api/project/revision/${projectId}`, {
         prompt: prompt,
-        currentCode: code 
+        currentCode: code,
+        model: model
       });
 
       setCode(data.code || data.current_code); 
@@ -500,6 +502,16 @@ ${safeCode}
       {/* THE AI REVISION CHAT BAR */}
       <div className="px-8 pb-8">
         <form onSubmit={handleRevision} className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 rounded-full shadow-2xl">
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            disabled={isUpdating}
+            className="bg-[#0f172a] text-sm text-gray-300 outline-none cursor-pointer border border-gray-700 rounded-full px-4 py-2 focus:ring-1 ring-indigo-500 max-w-[150px] hidden md:block"
+          >
+            <option value="default">Standard</option>
+            <option value="gemini">Gemini</option>
+            <option value="groq">Groq</option>
+          </select>
           <input 
             type="text" 
             value={prompt}

@@ -85,12 +85,25 @@ export const makeRevision = async (req: Request, res: Response) => {
   try {
     const projectId = req.params.projectId as string;
     const message = req.body.message || req.body.prompt;
+    const model = req.body.model;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    // Ensure user has at least 5 credits for a revision
-    if (user && user.credits < 5) {
-      return res.status(403).json({ message: 'Add more credit to make changes' });
+    // Determine the AI model and its cost
+    let aiModelId = 'openrouter/free';
+    let cost = 5;
+
+    if (model === 'gemini') {
+      aiModelId = 'google/gemini-3-flash-preview';
+      cost = 10;
+    } else if (model === 'groq') {
+      aiModelId = 'meta-llama/llama-3.3-70b-instruct';
+      cost = 10;
+    }
+
+    // Ensure user has enough credits for a revision
+    if (user && user.credits < cost) {
+      return res.status(403).json({ message: `Need ${cost} credits to make changes` });
     }
 
     if (!message || message.trim() === '') {
@@ -112,15 +125,15 @@ export const makeRevision = async (req: Request, res: Response) => {
       data: { role: 'user', content: message, projectId },
     });
 
-    // Deduct 5 credits for the revision
+    // Deduct dynamic credits for the revision
     await prisma.user.update({
       where: { id: userId },
-      data: { credits: { decrement: 5 } },
+      data: { credits: { decrement: cost } },
     });
 
     // Enhance the revision prompt using AI
     const promptEnhanceResponse = await openai.chat.completions.create({
-      model: 'openrouter/free',
+      model: aiModelId,
       messages: [
         {
           role: 'system',
@@ -138,6 +151,7 @@ CRITICAL INSTRUCTIONS:
         },
         { role: 'user', content: `Enhance this website modification request: "${message}"` },
       ],
+      max_tokens: 1000,
     });
 
     const enhancedPrompt = promptEnhanceResponse.choices[0].message.content || message;
@@ -152,9 +166,10 @@ CRITICAL INSTRUCTIONS:
 
     // Ask AI to generate the updated code based on the OLD code + NEW prompt
     const codeGenerationResponse = await openai.chat.completions.create({
-      model: 'openrouter/free',
+      model: aiModelId,
       messages: [
-        { role: 'system', content: `You are a code generator. You ONLY output raw HTML code. You NEVER output explanations, suggestions, or commentary.
+        {
+          role: 'system', content: `You are a code generator. You ONLY output raw HTML code. You NEVER output explanations, suggestions, or commentary.
 
 Your response must start with <!DOCTYPE html> and end with </html>. Nothing else.
 
@@ -182,7 +197,7 @@ RULES:
       });
       await prisma.user.update({
         where: { id: userId },
-        data: { credits: { increment: 5 } },
+        data: { credits: { increment: cost } },
       });
       return res.status(500).json({ message: 'AI failed to generate code.' });
     }
@@ -197,7 +212,7 @@ RULES:
       });
       await prisma.user.update({
         where: { id: userId },
-        data: { credits: { increment: 5 } },
+        data: { credits: { increment: cost } },
       });
       return res.status(500).json({ message: 'AI generated empty HTML. Please try again.' });
     }

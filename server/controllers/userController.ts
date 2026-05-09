@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import prisma from '../lib/prisma.js'; 
+import prisma from '../lib/prisma.js';
 import openai from '../config/openai.js'; // ✅ FIX 1: Changed "config" to "configs" (plural) to match your folder structure
 import Stripe from 'stripe';
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
@@ -98,29 +98,41 @@ export const createUserProject = async (req: Request, res: Response) => {
   if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
   try {
-    const { initialPrompt } = req.body;
+    const { initialPrompt, model } = req.body;
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
 
-    // Check if user has enough credits (Costs 5 credits)
-    if (user && user.credits < 5) {
-      return res.status(403).json({ message: 'Add credit to create more projects' });
+    // Determine the AI model and its cost
+    let aiModelId = 'openrouter/free';
+    let cost = 5;
+
+    if (model === 'gemini') {
+      aiModelId = 'google/gemini-3-flash-preview';
+      cost = 10;
+    } else if (model === 'groq') {
+      aiModelId = 'meta-llama/llama-3.3-70b-instruct';
+      cost = 10;
+    }
+
+    // Check if user has enough credits
+    if (user && user.credits < cost) {
+      return res.status(403).json({ message: `Need ${cost} credits to use this model` });
     }
 
     // 1. Create the project in the database
-   const project = await prisma.websiteProject.create({
+    const project = await prisma.websiteProject.create({
       data: {
         name: initialPrompt.length > 50 ? initialPrompt.substring(0, 47) + '...' : initialPrompt,
         initial_prompt: initialPrompt, // ✅ Mapped to the exact database column name!
         userId,
       },
     });
-    // 2. Update user stats and deduct credits
+    // 2. Update user stats and deduct dynamic credits
     await prisma.user.update({
       where: { id: userId },
-      data: { 
+      data: {
         totalCreation: { increment: 1 },
-        credits: { decrement: 5 } 
+        credits: { decrement: cost }
       },
     });
 
@@ -131,11 +143,12 @@ export const createUserProject = async (req: Request, res: Response) => {
 
     // 4. Enhance the user's prompt using AI
     const promptEnhanceResponse = await openai.chat.completions.create({
-      model: 'openrouter/free', 
+      model: aiModelId,
       messages: [
         { role: 'system', content: 'You are an expert web developer and designer. Enhance the user request into a concise, detailed prompt for a complete, self-contained HTML website. The website must use standard CSS in <style> tags for styling and vanilla JavaScript for interactivity. NO frameworks, NO Tailwind CSS, NO Bootstrap, NO external libraries. The enhanced prompt must emphasize: 1) Mobile-first responsive design with @media queries for tablet (768px) and desktop (1024px). 2) Beautiful modern aesthetics: professional color palette, Google Fonts for typography, smooth hover transitions, gradients, shadows, and rounded corners. 3) Every button, link, form, and navigation must be fully functional with JavaScript event handlers. 4) Include a responsive hamburger menu for mobile. Ask for ONLY the HTML code, no markdown or commentary.' },
         { role: 'user', content: `Enhance this website creation request: "${initialPrompt}"` },
       ],
+      max_tokens: 1000,
     });
 
     const enhancedPrompt = promptEnhanceResponse.choices[0].message.content || initialPrompt;
@@ -150,9 +163,10 @@ export const createUserProject = async (req: Request, res: Response) => {
 
     // 5. Generate the actual Website Code using AI
     const codeGenerationResponse = await openai.chat.completions.create({
-      model: 'openrouter/free', 
+      model: aiModelId,
       messages: [
-        { role: 'system', content: `You are a code generator. You ONLY output raw HTML code. You NEVER output explanations, suggestions, or commentary. Your response must start with <!DOCTYPE html> and end with </html>. Nothing else.
+        {
+          role: 'system', content: `You are a code generator. You ONLY output raw HTML code. You NEVER output explanations, suggestions, or commentary. Your response must start with <!DOCTYPE html> and end with </html>. Nothing else.
 
 RULES:
 - Return a COMPLETE HTML document starting with <!DOCTYPE html>.
@@ -178,7 +192,7 @@ RULES:
       });
       await prisma.user.update({
         where: { id: userId },
-        data: { credits: { increment: 5 } },
+        data: { credits: { increment: cost } },
       });
       return res.status(500).json({ message: 'AI failed to generate code.' });
     }
@@ -193,7 +207,7 @@ RULES:
       });
       await prisma.user.update({
         where: { id: userId },
-        data: { credits: { increment: 5 } },
+        data: { credits: { increment: cost } },
       });
       return res.status(500).json({ message: 'AI generated empty HTML. Please try again.' });
     }
@@ -239,8 +253,8 @@ export const getUserProject = async (req: Request, res: Response) => {
 
     // ✅ FIX 3: Changed "findUnique" to "findFirst". 
     // Prisma throws an error if you use findUnique with fields that aren't marked as @unique in your schema.
-   const project = await prisma.websiteProject.findFirst({
-      where: { 
+    const project = await prisma.websiteProject.findFirst({
+      where: {
         id: projectId as string, // 👈 FIX: Added "as string" right here!
         userId: userId as string // 👈 Added here too just to be 100% safe
       },
@@ -307,7 +321,7 @@ export const purchaseCredits = async (req: Request, res: Response) => {
     if (!userId) return res.status(401).json({ message: 'Unauthorized' });
 
     const { planId } = req.body;
-    
+
     // Map the incoming planId to credits and price (in cents)
     let credits = 0;
     let amount = 0;
