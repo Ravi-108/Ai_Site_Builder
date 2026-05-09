@@ -12,7 +12,8 @@ const port = process.env.PORT || 3000;
 
 // CORS Configuration
 const corsOptions = {
-  origin: ['http://localhost:5173', 'https://ai-site-builder-nmc2.onrender.com'],
+  origin: ['http://localhost:5173', 'https://ai-site-builder-pi.vercel.app'],
+  // https://ai-site-builder-pi.vercel.app
   methods: 'GET,POST,PUT,DELETE',
   allowedHeaders: 'Content-Type,Authorization',
   credentials: true,
