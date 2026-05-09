@@ -3,43 +3,44 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma.js"; // Make sure this path is correct for your project
 
-const TRUSTED_ORIGINS = process.env.TRUSTED_ORIGINS ? process.env.TRUSTED_ORIGINS.split(",") : [];
+// const TRUSTED_ORIGINS = process.env.TRUSTED_ORIGINS ? process.env.TRUSTED_ORIGINS.split(",") : [];
+const TRUSTED_ORIGINS = ["http://localhost:5173", "https://ai-site-builder-nmc2.onrender.com"]
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
-    provider: "postgresql", 
+    provider: "postgresql",
   }),
 
-  emailAndPassword: { 
-    enabled: true, 
+  emailAndPassword: {
+    enabled: true,
   },
-  
+
   user: {
     deleteUser: { enabled: true },
     // NEW: Exposing the credits column from Neon DB to your frontend!
     additionalFields: {
       credits: {
         type: "number",
-        returned: true 
+        returned: true
       }
     }
   },
-  
-  trustedOrigins: TRUSTED_ORIGINS, 
+
+  trustedOrigins: TRUSTED_ORIGINS,
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET!,
-  
+
   advanced: {
     cookies: {
-      session_token: { 
+      session_token: {
         name: 'auth_session',
         attributes: {
           httpOnly: true,
           secure: process.env.NODE_ENV === 'production',
-          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', 
+          sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
           path: '/',
         }
       }
     }
-  } 
+  }
 });
