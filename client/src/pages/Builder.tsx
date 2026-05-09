@@ -133,6 +133,17 @@ function Builder() {
         payload: updatedElement
       }, '*');
     }
+
+    // Sync back to React 'code' state so changes persist on save/reload!
+    setCode((prevCode) => {
+      let newCode = prevCode;
+      const oldValue = selectedElement[field];
+      if (oldValue && oldValue !== value) {
+        // Simple string replacement (works well for unique src/className strings)
+        newCode = newCode.replace(oldValue, value);
+      }
+      return newCode;
+    });
   };
 
   // --- THE MAGIC: THIS TURNS CODE INTO A LIVE WEBSITE ---
@@ -155,18 +166,45 @@ function Builder() {
           e.target.style.outlineOffset = '';
         });
 
-        // Click Detection
         document.addEventListener('click', (e) => {
           const link = e.target.closest('a');
+          let isInternalAnchor = false;
+          
           if (link) {
             const href = link.getAttribute('href');
-            if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+            if (href && href.startsWith('#')) {
+              isInternalAnchor = true;
+              e.preventDefault();
+              const targetId = href.substring(1);
+              if (targetId) {
+                const targetEl = document.getElementById(targetId);
+                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+              }
+            } else {
               e.preventDefault();
             }
+          } else {
+            e.preventDefault();
           }
-          e.preventDefault();
+          
           e.stopPropagation();
           if (e.target.tagName === 'BODY' || e.target.tagName === 'HTML') return;
+          let src = undefined;
+          let hasChildImage = false;
+          let imgId = undefined;
+
+          if (e.target.tagName === 'IMG') {
+            src = e.target.src;
+          } else {
+            const img = e.target.querySelector('img');
+            if (img) {
+              src = img.src;
+              hasChildImage = true;
+              if (!img.id) img.id = 'edit-' + Math.random().toString(36).substr(2, 9);
+              imgId = img.id;
+            }
+          }
+
           if (!e.target.id) {
             e.target.id = 'edit-' + Math.random().toString(36).substr(2, 9);
           }
@@ -177,7 +215,9 @@ function Builder() {
               tagName: e.target.tagName,
               textContent: e.target.innerText,
               className: e.target.className,
-              src: e.target.tagName === 'IMG' ? e.target.src : undefined
+              src: src,
+              hasChildImage: hasChildImage,
+              imgId: imgId
             }
           }, '*');
         });
@@ -189,7 +229,15 @@ function Builder() {
             if (el) {
               if (event.data.payload.textContent !== undefined && el.tagName !== 'IMG') el.innerText = event.data.payload.textContent;
               if (event.data.payload.className !== undefined) el.className = event.data.payload.className;
-              if (event.data.payload.src !== undefined && el.tagName === 'IMG') el.src = event.data.payload.src;
+              
+              if (event.data.payload.src !== undefined) {
+                if (el.tagName === 'IMG') {
+                  el.src = event.data.payload.src;
+                } else if (event.data.payload.imgId) {
+                  const imgEl = document.getElementById(event.data.payload.imgId);
+                  if (imgEl) imgEl.src = event.data.payload.src;
+                }
+              }
             }
           }
         });
@@ -279,17 +327,44 @@ ${safeCode}
 
             document.addEventListener('click', (e) => {
               const link = e.target.closest('a');
+              let isInternalAnchor = false;
+              
               if (link) {
                 const href = link.getAttribute('href');
-                if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+                if (href && href.startsWith('#')) {
+                  isInternalAnchor = true;
+                  e.preventDefault();
+                  const targetId = href.substring(1);
+                  if (targetId) {
+                    const targetEl = document.getElementById(targetId);
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+                  }
+                } else {
                   e.preventDefault();
                 }
+              } else {
+                e.preventDefault();
               }
 
-              e.preventDefault();
               e.stopPropagation();
 
               if (e.target.tagName === 'BODY' || e.target.tagName === 'HTML') return;
+
+              let src = undefined;
+              let hasChildImage = false;
+              let imgId = undefined;
+
+              if (e.target.tagName === 'IMG') {
+                src = e.target.src;
+              } else {
+                const img = e.target.querySelector('img');
+                if (img) {
+                  src = img.src;
+                  hasChildImage = true;
+                  if (!img.id) img.id = 'edit-' + Math.random().toString(36).substr(2, 9);
+                  imgId = img.id;
+                }
+              }
 
               if (!e.target.id) {
                 e.target.id = 'edit-' + Math.random().toString(36).substr(2, 9);
@@ -303,7 +378,9 @@ ${safeCode}
                   tagName: e.target.tagName,
                   textContent: e.target.innerText,
                   className: e.target.className,
-                  src: e.target.tagName === 'IMG' ? e.target.src : undefined
+                  src: src,
+                  hasChildImage: hasChildImage,
+                  imgId: imgId
                 }
               }, '*');
             });
@@ -315,7 +392,15 @@ ${safeCode}
                 if (el) {
                   if (event.data.payload.textContent !== undefined && el.tagName !== 'IMG') el.innerText = event.data.payload.textContent;
                   if (event.data.payload.className !== undefined) el.className = event.data.payload.className;
-                  if (event.data.payload.src !== undefined && el.tagName === 'IMG') el.src = event.data.payload.src;
+                  
+                  if (event.data.payload.src !== undefined) {
+                    if (el.tagName === 'IMG') {
+                      el.src = event.data.payload.src;
+                    } else if (event.data.payload.imgId) {
+                      const imgEl = document.getElementById(event.data.payload.imgId);
+                      if (imgEl) imgEl.src = event.data.payload.src;
+                    }
+                  }
                 }
               }
             });
@@ -467,9 +552,9 @@ ${safeCode}
               </div>
 
               <div className="space-y-4">
-                {selectedElement.tagName === 'IMG' ? (
+                {(selectedElement.tagName === 'IMG' || selectedElement.hasChildImage) && (
                   <div>
-                    <label className="block text-xs text-gray-400 mb-1">Image URL (src)</label>
+                    <label className="block text-xs text-gray-400 mb-1">{selectedElement.tagName === 'IMG' ? 'Image URL (src)' : 'Child Image URL (src)'}</label>
                     <input 
                       type="text"
                       value={selectedElement.src || ''}
@@ -494,7 +579,9 @@ ${safeCode}
                       ))}
                     </div>
                   </div>
-                ) : (
+                )}
+                
+                {selectedElement.tagName !== 'IMG' && (
                   <div>
                     <label className="block text-xs text-gray-400 mb-1">Text Content</label>
                     <textarea 

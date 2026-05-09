@@ -1,4 +1,4 @@
-import { Loader2Icon } from 'lucide-react';
+import { Loader2Icon, Cpu, Sparkles, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authClient } from '@/lib/auth-client';
@@ -81,20 +81,36 @@ function Home() {
             required 
             disabled={loading} // Prevent typing while AI is generating
           />
-          <div className="flex justify-between items-center mt-2">
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              disabled={loading}
-              className="bg-[#0f172a] text-sm text-gray-300 outline-none cursor-pointer border border-gray-700 rounded-md px-3 py-2 focus:ring-1 ring-indigo-500"
-            >
-              <option value="default">Standard Model (5 credits)</option>
-              <option value="gemini">Gemini Pro (10 credits)</option>
-              <option value="groq">Groq Fast (10 credits)</option>
-            </select>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button 
+                type="button" 
+                onClick={() => setModel('default')} 
+                disabled={loading}
+                className={`px-3 py-1.5 rounded-lg border text-xs sm:text-sm flex items-center gap-2 transition-all ${model === 'default' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-100 shadow-[0_0_10px_rgba(99,102,241,0.2)]' : 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+              >
+                <Cpu className="w-4 h-4" /> Standard (5 cr)
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setModel('gemini')} 
+                disabled={loading}
+                className={`px-3 py-1.5 rounded-lg border text-xs sm:text-sm flex items-center gap-2 transition-all ${model === 'gemini' ? 'bg-purple-600/20 border-purple-500 text-purple-100 shadow-[0_0_10px_rgba(168,85,247,0.2)]' : 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+              >
+                <Sparkles className={`w-4 h-4 ${model === 'gemini' ? 'text-purple-300' : 'text-purple-500'}`} /> Gemini Pro (10 cr)
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setModel('groq')} 
+                disabled={loading}
+                className={`px-3 py-1.5 rounded-lg border text-xs sm:text-sm flex items-center gap-2 transition-all ${model === 'groq' ? 'bg-amber-600/20 border-amber-500 text-amber-100 shadow-[0_0_10px_rgba(245,158,11,0.2)]' : 'border-white/10 text-gray-400 hover:text-gray-200 hover:bg-white/5'}`}
+              >
+                <Zap className={`w-4 h-4 ${model === 'groq' ? 'text-amber-300' : 'text-amber-500'}`} /> Groq Fast (10 cr)
+              </button>
+            </div>
             <button 
               disabled={loading} // Prevent double-clicking
-              className="flex items-center gap-2 bg-gradient-to-r from-[#CB52D4] to-indigo-600 rounded-md px-4 py-2 disabled:opacity-50"
+              className="flex items-center gap-2 bg-gradient-to-r from-[#CB52D4] to-indigo-600 rounded-md px-6 py-2.5 disabled:opacity-50 font-medium transition-all hover:shadow-[0_0_15px_rgba(99,102,241,0.4)] w-full sm:w-auto justify-center"
             >
               {loading ? 'Generating...' : 'Create Website'}
               {loading && <Loader2Icon className='animate-spin size-4 text-white' />}

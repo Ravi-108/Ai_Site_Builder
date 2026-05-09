@@ -1,50 +1,62 @@
-import { Link } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
-import UserProfile from './UserProfile'; // 👈 We import the profile button here!
-import { useSession } from '../lib/auth-client';
+import React from 'react';
+import { authClient } from '@/lib/auth-client';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
+import { LogOut, Settings, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-export default function Navbar() {
-  const { data: session } = useSession();
+export default function UserProfile() {
+  const { data: session } = authClient.useSession();
+  const navigate = useNavigate();
+
+  if (!session?.user) return null;
+
+  const handleLogout = async () => {
+    await authClient.signOut();
+    navigate('/');
+  };
 
   return (
-    <nav className="sticky top-0 z-50 w-full h-[70px] bg-[#030305]/80 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
-        
-        {/* Left Side: Logo */}
-        <Link to="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#6d28d9] to-blue-600 flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-white" />
+    <DropdownMenu>
+      <DropdownMenuTrigger className="outline-none">
+        <Avatar className="h-10 w-10 ring-2 ring-indigo-500/30 transition-all hover:ring-indigo-500 hover:shadow-[0_0_15px_rgba(99,102,241,0.5)] cursor-pointer">
+          <AvatarImage src={session.user.image || ''} alt={session.user.name || 'User'} />
+          <AvatarFallback className="bg-indigo-950 text-indigo-200 font-semibold border border-indigo-500/20">
+            {session.user.name?.charAt(0).toUpperCase() || 'U'}
+          </AvatarFallback>
+        </Avatar>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56 bg-[#0a0a0f]/95 backdrop-blur-xl border-indigo-500/20 text-white shadow-xl shadow-indigo-900/20 rounded-xl mt-2">
+        <DropdownMenuLabel className="font-normal p-3">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none text-indigo-100">{session.user.name}</p>
+            <p className="text-xs leading-none text-indigo-300/70 mt-1">
+              {session.user.email}
+            </p>
           </div>
-          <span className="text-xl font-bold text-white tracking-tight">
-            SiteBuilder
-          </span>
-        </Link>
-
-        {/* Middle: Navigation Links */}
-        <div className="hidden md:flex items-center gap-8">
-          <Link to="/" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Home</Link>
-          <Link to="/projects" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">My Projects</Link>
-          <Link to="/community" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Community</Link>
-          <Link to="/pricing" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">Pricing</Link>
-        </div>
-
-        {/* Right Side: User Profile or Login Button */}
-        <div className="flex items-center gap-4">
-          {session ? (
-            // If logged in, show your shiny new UserProfile component!
-            <UserProfile />
-          ) : (
-            // If NOT logged in, show a standard Get Started button
-            <Link 
-              to="/auth" 
-              className="px-4 py-2 text-sm font-medium text-white bg-[#6d28d9] hover:bg-[#5b21b6] rounded-lg transition-all shadow-[0_0_15px_rgba(109,40,217,0.3)]"
-            >
-              Get started
-            </Link>
-          )}
-        </div>
-
-      </div>
-    </nav>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator className="bg-indigo-500/20" />
+        <DropdownMenuItem className="hover:bg-indigo-500/20 focus:bg-indigo-500/20 focus:text-indigo-100 cursor-pointer text-indigo-200/90 py-2.5 px-3 rounded-lg mx-1 my-1 transition-colors" onClick={() => navigate('/projects')}>
+          <User className="mr-2 h-4 w-4" />
+          <span>My Projects</span>
+        </DropdownMenuItem>
+        <DropdownMenuItem className="hover:bg-indigo-500/20 focus:bg-indigo-500/20 focus:text-indigo-100 cursor-pointer text-indigo-200/90 py-2.5 px-3 rounded-lg mx-1 my-1 transition-colors" onClick={() => navigate('/pricing')}>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Billing & Credits</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="bg-indigo-500/20" />
+        <DropdownMenuItem className="hover:bg-red-500/20 focus:bg-red-500/20 focus:text-red-400 cursor-pointer text-red-400/90 py-2.5 px-3 rounded-lg mx-1 mb-1 transition-colors" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>Log out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
