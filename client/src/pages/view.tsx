@@ -40,8 +40,29 @@ export default function View() {
     // PATH 1: If the code is a complete HTML document, use it directly
     const isHtmlDoc = /<!DOCTYPE\s+html/i.test(websiteCode) || /^\s*<html[\s>]/i.test(websiteCode);
 
+    const scrollFixScript = `
+      <script>
+        document.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+              const targetId = this.getAttribute('href').substring(1);
+              if (!targetId) return;
+              const targetEl = document.getElementById(targetId);
+              if (targetEl) {
+                e.preventDefault();
+                targetEl.scrollIntoView({ behavior: 'smooth' });
+              }
+            });
+          });
+        });
+      </script>
+    `;
+
     if (isHtmlDoc) {
-      return websiteCode;
+      if (websiteCode.includes('</body>')) {
+        return websiteCode.replace('</body>', `${scrollFixScript}</body>`);
+      }
+      return websiteCode + scrollFixScript;
     }
 
     // PATH 2: Legacy React/JSX code — use the old Babel transpilation pipeline
