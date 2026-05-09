@@ -33,17 +33,25 @@ export default function View() {
     fetchPublicProject();
   }, [projectId]);
 
-  // --- 🚀 THE MAGIC COMPILER (Copied from Builder.tsx) ---
-  const generateIframeDoc = (reactCode: string) => {
-    let cleanCode = reactCode;
-    
-    // Strip markdown
+  // --- RENDER ENGINE: Handles both HTML documents and legacy React/JSX ---
+  const generateIframeDoc = (websiteCode: string) => {
+    if (!websiteCode) return '';
+
+    // PATH 1: If the code is a complete HTML document, use it directly
+    const isHtmlDoc = /<!DOCTYPE\s+html/i.test(websiteCode) || /^\s*<html[\s>]/i.test(websiteCode);
+
+    if (isHtmlDoc) {
+      return websiteCode;
+    }
+
+    // PATH 2: Legacy React/JSX code — use the old Babel transpilation pipeline
+    let cleanCode = websiteCode;
+
     const markdownMatch = cleanCode.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
     if (markdownMatch) {
       cleanCode = markdownMatch[1];
     }
 
-    // Strip imports/exports/requires
     cleanCode = cleanCode.replace(/^\s*import\s+[^\n;]+(?:;\s*)?$/gim, '');
     cleanCode = cleanCode.replace(/^\s*import\s*['"][^'"]+['"]\s*;?\s*$/gim, '');
     cleanCode = cleanCode.replace(/^\s*export\s+default\s+/gim, '');
@@ -52,7 +60,6 @@ export default function View() {
     cleanCode = cleanCode.replace(/^\s*(const|let|var)\s+[^\n=]+\s*=\s*require\([^\)]*\)\s*;?\s*$/gim, '');
     cleanCode = cleanCode.replace(/^\s*require\([^\)]*\)\s*;?\s*$/gim, '');
 
-    // Identify main component
     const componentMatch =
       cleanCode.match(/const\s+(\w+)\s*=\s*\(/) ||
       cleanCode.match(/function\s+(\w+)\s*\(/) ||
@@ -74,16 +81,16 @@ export default function View() {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <script src="https://cdn.tailwindcss.com"></script>
-          <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
-          <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-          <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+          <script src="https://cdn.tailwindcss.com"><\/script>
+          <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
+          <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
+          <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
         </head>
         <body class="bg-gray-50 text-gray-900">
           <div id="root"></div>
           <script type="text/plain" id="ai-code">
 ${safeCode}
-          </script>
+          <\/script>
           <script>
             try {
               const rawCode = document.getElementById('ai-code').textContent;
@@ -95,13 +102,13 @@ ${safeCode}
               
               const finalExecuteCode = compiledCode + "\\n" +
                 "const root = ReactDOM.createRoot(document.getElementById('root'));\\n" +
-                "root.render(React.createElement(" + "${mainComponent}" + "));";
+                "root.render(React.createElement(${mainComponent}));";
               
               eval(finalExecuteCode);
             } catch (err) {
               document.getElementById('root').innerHTML = '<div style="color: red; padding: 20px; font-family: monospace;">Render Error: ' + err.message + '</div>';
             }
-          </script>
+          <\/script>
         </body>
       </html>
     `;

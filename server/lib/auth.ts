@@ -4,7 +4,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import prisma from "./prisma.js"; // Make sure this path is correct for your project
 
 // const TRUSTED_ORIGINS = process.env.TRUSTED_ORIGINS ? process.env.TRUSTED_ORIGINS.split(",") : [];
-const TRUSTED_ORIGINS = ['https://ai-site-builder-pi.vercel.app', 'http://localhost:5173'];
+const TRUSTED_ORIGINS = ['https://ai-site-builder-pi.vercel.app', 'http://localhost:5173', 'localhost:5173'];
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {

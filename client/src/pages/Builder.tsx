@@ -11,6 +11,7 @@ function Builder() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [saving, setSaving] = useState(false);
+  const [model, setModel] = useState('default');
   const [prompt, setPrompt] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
@@ -102,7 +103,8 @@ function Builder() {
       setIsUpdating(true);
       const { data } = await API.post(`/api/project/revision/${projectId}`, {
         prompt: prompt,
-        currentCode: code 
+        currentCode: code,
+        model: model
       });
 
       setCode(data.code || data.current_code); 
@@ -133,11 +135,82 @@ function Builder() {
     }
   };
 
-  // --- THE MAGIC: THIS TURNS RAW REACT CODE INTO A LIVE WEBSITE ---
-  const generateIframeDoc = (reactCode: string) => {
-    let cleanCode = reactCode;
-    
-    const markdownMatch = cleanCode.match(/```[a-zA-Z]*\n([\s\S]*?)```/);
+  // --- THE MAGIC: THIS TURNS CODE INTO A LIVE WEBSITE ---
+  const generateIframeDoc = (websiteCode: string) => {
+    if (!websiteCode) return '';
+
+    // Helper: the click-to-edit script that gets injected into every preview
+    const editorScript = `
+      <script>
+        // Hover Highlighting
+        document.addEventListener('mouseover', (e) => {
+          if (e.target.tagName !== 'BODY' && e.target.tagName !== 'HTML' && e.target.tagName !== 'SCRIPT') {
+            e.target.style.outline = '2px solid #6366f1';
+            e.target.style.outlineOffset = '2px';
+            e.target.style.cursor = 'pointer';
+          }
+        });
+        document.addEventListener('mouseout', (e) => {
+          e.target.style.outline = '';
+          e.target.style.outlineOffset = '';
+        });
+
+        // Click Detection
+        document.addEventListener('click', (e) => {
+          const link = e.target.closest('a');
+          if (link) {
+            const href = link.getAttribute('href');
+            if (href && !href.startsWith('#') && !href.startsWith('javascript')) {
+              e.preventDefault();
+            }
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.target.tagName === 'BODY' || e.target.tagName === 'HTML') return;
+          if (!e.target.id) {
+            e.target.id = 'edit-' + Math.random().toString(36).substr(2, 9);
+          }
+          window.parent.postMessage({
+            type: 'ELEMENT_SELECTED',
+            payload: {
+              id: e.target.id,
+              tagName: e.target.tagName,
+              textContent: e.target.innerText,
+              className: e.target.className,
+              src: e.target.tagName === 'IMG' ? e.target.src : undefined
+            }
+          }, '*');
+        });
+
+        // Listen for manual updates from parent
+        window.addEventListener('message', (event) => {
+          if (event.data.type === 'UPDATE_ELEMENT') {
+            const el = document.getElementById(event.data.payload.id);
+            if (el) {
+              if (event.data.payload.textContent !== undefined && el.tagName !== 'IMG') el.innerText = event.data.payload.textContent;
+              if (event.data.payload.className !== undefined) el.className = event.data.payload.className;
+              if (event.data.payload.src !== undefined && el.tagName === 'IMG') el.src = event.data.payload.src;
+            }
+          }
+        });
+      <\/script>
+    `;
+
+    // PATH 1: If the code is a complete HTML document, use it directly (new HTML/CSS/JS path)
+    const isHtmlDoc = /<!DOCTYPE\s+html/i.test(websiteCode) || /^\s*<html[\s>]/i.test(websiteCode);
+
+    if (isHtmlDoc) {
+      // Inject the editor script before </body>
+      if (websiteCode.includes('</body>')) {
+        return websiteCode.replace('</body>', `${editorScript}</body>`);
+      }
+      return websiteCode + editorScript;
+    }
+
+    // PATH 2: Legacy React/JSX code — use the old Babel transpilation pipeline
+    let cleanCode = websiteCode;
+
+    const markdownMatch = cleanCode.match(/\`\`\`[a-zA-Z]*\n([\s\S]*?)\`\`\`/);
     if (markdownMatch) {
       cleanCode = markdownMatch[1];
     }
@@ -147,7 +220,6 @@ function Builder() {
     cleanCode = cleanCode.replace(/^\s*export\s+default\s+/gim, '');
     cleanCode = cleanCode.replace(/^\s*export\s+(const|function|class)\s+/gim, '$1 ');
     cleanCode = cleanCode.replace(/^\s*module\.exports\s*=.*$/gim, '');
-
     cleanCode = cleanCode.replace(/^\s*(const|let|var)\s+[^\n=]+\s*=\s*require\([^\)]*\)\s*;?\s*$/gim, '');
     cleanCode = cleanCode.replace(/^\s*require\([^\)]*\)\s*;?\s*$/gim, '');
 
@@ -156,7 +228,7 @@ function Builder() {
       cleanCode.match(/function\s+(\w+)\s*\(/) ||
       cleanCode.match(/class\s+(\w+)\s+extends\s+React\.Component/);
 
-    let executableCode = cleanCode;
+    let executableCode = cleanCode; 
     let mainComponent = componentMatch ? componentMatch[1] : 'App';
 
     if (!componentMatch) {
@@ -172,10 +244,10 @@ function Builder() {
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <script src="https://cdn.tailwindcss.com"></script>
-          <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"></script>
-          <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-          <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+          <script src="https://cdn.tailwindcss.com"><\/script>
+          <script crossorigin="anonymous" src="https://unpkg.com/react@18/umd/react.development.js"><\/script>
+          <script crossorigin="anonymous" src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"><\/script>
+          <script crossorigin="anonymous" src="https://unpkg.com/@babel/standalone/babel.min.js"><\/script>
         </head>
         <body class="bg-gray-50 text-gray-900">
           <div id="root"></div>
@@ -183,7 +255,7 @@ function Builder() {
           
           <script type="text/plain" id="ai-code">
 ${safeCode}
-          </script>
+          <\/script>
           
           <script>
             window.onerror = function(msg) {
@@ -191,7 +263,7 @@ ${safeCode}
               return false;
             };
 
-            // 🚀 NEW: Hover Highlighting and Click Detection Script
+            // Hover Highlighting and Click Detection Script
             document.addEventListener('mouseover', (e) => {
               if (e.target.tagName !== 'BODY' && e.target.tagName !== 'HTML') {
                 e.target.style.outline = '2px solid #6366f1';
@@ -230,7 +302,8 @@ ${safeCode}
                   id: e.target.id,
                   tagName: e.target.tagName,
                   textContent: e.target.innerText,
-                  className: e.target.className
+                  className: e.target.className,
+                  src: e.target.tagName === 'IMG' ? e.target.src : undefined
                 }
               }, '*');
             });
@@ -240,8 +313,9 @@ ${safeCode}
               if (event.data.type === 'UPDATE_ELEMENT') {
                 const el = document.getElementById(event.data.payload.id);
                 if (el) {
-                  if (event.data.payload.textContent !== undefined) el.innerText = event.data.payload.textContent;
+                  if (event.data.payload.textContent !== undefined && el.tagName !== 'IMG') el.innerText = event.data.payload.textContent;
                   if (event.data.payload.className !== undefined) el.className = event.data.payload.className;
+                  if (event.data.payload.src !== undefined && el.tagName === 'IMG') el.src = event.data.payload.src;
                 }
               }
             });
@@ -256,13 +330,13 @@ ${safeCode}
               
               const finalExecuteCode = compiledCode + "\\n" +
                 "const root = ReactDOM.createRoot(document.getElementById('root'));\\n" +
-                "root.render(React.createElement(" + "${mainComponent}" + "));";
+                "root.render(React.createElement(${mainComponent}));";
               
               eval(finalExecuteCode);
             } catch (err) {
               document.getElementById('error-boundary').innerText = 'React Code Error:\\n' + err.message;
             }
-          </script>
+          <\/script>
         </body>
       </html>
     `;
@@ -393,15 +467,44 @@ ${safeCode}
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs text-gray-400 mb-1">Text Content</label>
-                  <textarea 
-                    value={selectedElement.textContent}
-                    onChange={(e) => handleManualUpdate('textContent', e.target.value)}
-                    className="w-full bg-black border border-white/10 rounded-md p-2 text-sm text-white focus:border-indigo-500 outline-none resize-none"
-                    rows={3}
-                  />
-                </div>
+                {selectedElement.tagName === 'IMG' ? (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Image URL (src)</label>
+                    <input 
+                      type="text"
+                      value={selectedElement.src || ''}
+                      onChange={(e) => handleManualUpdate('src', e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-md p-2 text-sm text-white focus:border-indigo-500 outline-none mb-3"
+                    />
+                    <label className="block text-xs text-gray-400 mb-1">Presets Gallery</label>
+                    <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+                      {[
+                        "https://images.unsplash.com/photo-1498050108023-c5249f4df085",
+                        "https://images.unsplash.com/photo-1504384308090-c894fdcc538d",
+                        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40",
+                        "https://images.unsplash.com/photo-1551288049-bebda4e38f71"
+                      ].map((imgUrl, i) => (
+                        <img 
+                          key={i} 
+                          src={imgUrl + "?w=100&h=100&fit=crop"} 
+                          onClick={() => handleManualUpdate('src', imgUrl + "?w=800&q=80")}
+                          className="w-12 h-12 rounded cursor-pointer hover:ring-2 ring-indigo-500 object-cover shrink-0" 
+                          title="Click to apply"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Text Content</label>
+                    <textarea 
+                      value={selectedElement.textContent || ''}
+                      onChange={(e) => handleManualUpdate('textContent', e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-md p-2 text-sm text-white focus:border-indigo-500 outline-none resize-none"
+                      rows={3}
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-xs text-gray-400 mb-1">Tailwind Classes</label>
                   <textarea 
@@ -432,6 +535,16 @@ ${safeCode}
       {/* THE AI REVISION CHAT BAR */}
       <div className="px-8 pb-8">
         <form onSubmit={handleRevision} className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 rounded-full shadow-2xl">
+          <select
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            disabled={isUpdating}
+            className="bg-[#0f172a] text-sm text-gray-300 outline-none cursor-pointer border border-gray-700 rounded-full px-4 py-2 focus:ring-1 ring-indigo-500 max-w-[150px] hidden md:block"
+          >
+            <option value="default">Standard</option>
+            <option value="gemini">Gemini</option>
+            <option value="groq">Groq</option>
+          </select>
           <input 
             type="text" 
             value={prompt}

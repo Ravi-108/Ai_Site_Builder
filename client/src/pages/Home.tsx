@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 
 function Home() {
   const [input, setInput] = useState('');
+  const [model, setModel] = useState('default');
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
@@ -31,9 +32,10 @@ function Home() {
     setLoading(true);
 
     try {
-      // 3. Send the prompt to our AI backend!
+      // 3. Send the prompt and selected model to our AI backend!
       const { data } = await API.post('/api/user/project', {
         initialPrompt: input,
+        model,
       });
 
       toast.success('Website generated successfully!');
@@ -79,13 +81,25 @@ function Home() {
             required 
             disabled={loading} // Prevent typing while AI is generating
           />
-          <button 
-            disabled={loading} // Prevent double-clicking
-            className="ml-auto flex items-center gap-2 bg-gradient-to-r from-[#CB52D4] to-indigo-600 rounded-md px-4 py-2 disabled:opacity-50"
-          >
-            {loading ? 'Generating...' : 'Create Website'}
-            {loading && <Loader2Icon className='animate-spin size-4 text-white' />}
-          </button>
+          <div className="flex justify-between items-center mt-2">
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              disabled={loading}
+              className="bg-[#0f172a] text-sm text-gray-300 outline-none cursor-pointer border border-gray-700 rounded-md px-3 py-2 focus:ring-1 ring-indigo-500"
+            >
+              <option value="default">Standard Model (5 credits)</option>
+              <option value="gemini">Gemini Pro (10 credits)</option>
+              <option value="groq">Groq Fast (10 credits)</option>
+            </select>
+            <button 
+              disabled={loading} // Prevent double-clicking
+              className="flex items-center gap-2 bg-gradient-to-r from-[#CB52D4] to-indigo-600 rounded-md px-4 py-2 disabled:opacity-50"
+            >
+              {loading ? 'Generating...' : 'Create Website'}
+              {loading && <Loader2Icon className='animate-spin size-4 text-white' />}
+            </button>
+          </div>
         </form>
 
         <div className="flex flex-wrap items-center justify-center gap-16 md:gap-20 mx-auto mt-16">
