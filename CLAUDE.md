@@ -224,14 +224,47 @@ POST   /api/stripe/webhook       # Stripe webhook (raw body, before express.json
 1. `better-auth` handles signup/login at `/api/auth/*` on the server.
 2. The client uses `@daveyplate/better-auth-ui` via `AuthUIProvider` in `providers.tsx`.
 3. Protected routes use the `protect` middleware which extracts `session.user.id` → `req.userId`.
+4. The client uses a custom `UserProfile.tsx` component (built with shadcn/ui Avatar and DropdownMenu) in the Navbar instead of the default `UserButton` from `better-auth-ui` to match the custom aesthetic.
 
 ### AI Generation Flow
 
 1. User sends a prompt → `POST /api/user/project`.
-2. Server calls OpenAI (via OpenRouter) to generate HTML/CSS/JS.
-3. Generated code is stored in `WebsiteProject.current_code`.
-4. Revisions: `POST /api/project/revision/:projectId` sends conversation history + new prompt to AI.
-5. Each AI response is saved as a new `Version` for rollback support.
+   - During generation, the frontend displays an animated loading sequence: "Analyzing your request...", "Generating HTML...", "Uploading to NeonDB...", "Saving to database...", "Done! Opening editor...".
+2. User selects an AI model (UI uses stylized radio pills matching the site's premium dark aesthetics instead of a native select dropdown):
+   - **Standard Model** (`openrouter/free`): 5 credits
+   - **Gemini Pro** (`google/gemini-3-flash-preview`): 10 credits
+   - **Groq Fast** (`meta-llama/llama-3.3-70b-instruct`): 10 credits
+3. Server enhances the prompt using AI (prompt-enhance step).
+4. Server calls OpenAI (via OpenRouter) to generate a **complete, self-contained HTML document** with CSS in `<style>` tags and JavaScript in `<script>` tags.
+5. Generated code is sanitized via `sanitizeAiHtmlCode()` which:
+   - Strips markdown code fences
+   - Validates the HTML has actual visible `<body>` content (not just CSS/JS)
+   - Extracts embedded HTML from commentary text
+   - Falls back to an error page if the AI returns plain text
+6. Code is stored in `WebsiteProject.current_code`.
+7. Revisions: `POST /api/project/revision/:projectId` sends current code + new prompt to AI.
+8. Each AI response is saved as a new `Version` for rollback support.
+9. If the sanitizer detects empty/broken HTML, credits are refunded and an error is returned.
+
+> **Important**: The AI is instructed to generate **pure HTML and JavaScript** while using **Tailwind CSS via CDN** (`<script src="https://cdn.tailwindcss.com"></script>`) for styling. NO React, NO JSX, NO Bootstrap. Google Fonts are loaded via `<link>` tags.
+
+### Website Rendering Engine (Dual-Path)
+
+The iframe preview in `Builder.tsx`, `view.tsx`, and the `generateIframeDoc()` function uses a **dual-path rendering engine**:
+
+- **PATH 1 (HTML)**: If the code starts with `<!DOCTYPE html>` or `<html>`, it's passed directly to the iframe via `srcDoc`. The click-to-edit script is injected before `</body>` (Builder only).
+- **PATH 2 (Legacy React/JSX)**: If the code doesn't look like HTML (old projects stored as React components), it falls back to the Babel transpilation pipeline with React 18 UMD + Babel Standalone.
+
+This ensures backward compatibility with projects generated before the HTML migration.
+
+### Manual Editor (Click-to-Edit)
+
+The `Builder.tsx` preview iframe injects a custom script that intercepts clicks on HTML elements and sends an `ELEMENT_SELECTED` message to the React parent. 
+- Clicking an element opens a manual editor overlay.
+- Users can edit **Text Content** (for text elements) or **Image URL** (for `<img>` tags).
+- Users can edit **Tailwind Classes** directly.
+- The manual editor includes a Presets Gallery for images, allowing users to quickly swap placeholder images with high-quality stock photos from Unsplash.
+- **Event Handling**: It uses event delegation without blocking default behavior for non-links, so the site's original JavaScript (e.g., mobile menus) remains functional during editing. External links are caught and opened in a new tab to avoid navigating the iframe away from the builder.
 
 ### Stripe Webhook
 
@@ -286,3 +319,13 @@ POST   /api/stripe/webhook       # Stripe webhook (raw body, before express.json
 6. **`req.userId`**: Added to the Express `Request` type via custom type declarations in `server/types/`. The `protect` middleware sets this.
 
 7. **OpenRouter, not OpenAI directly**: The OpenAI SDK is configured with `baseURL: "https://openrouter.ai/api/v1"`. The API key is an OpenRouter key, not an OpenAI key.
+
+8. **HTML generation, not React**: The AI generates pure HTML and JS with Tailwind CSS via CDN — **not** React components. The prompts explicitly forbid React, JSX, and Bootstrap. The `sanitizeAiHtmlCode()` function validates output quality.
+
+9. **Dual-path renderer**: `Builder.tsx` and `view.tsx` both have a `generateIframeDoc()` function that detects HTML vs legacy React code. Always maintain both paths when modifying the renderer.
+
+10. **Revision field name**: The frontend sends `{ prompt }` but the backend reads `req.body.message || req.body.prompt`. Keep both field names supported.
+
+11. **Free model quality**: The `openrouter/free` model sometimes returns commentary text or empty HTML instead of code. The sanitizer has multiple layers of defense (fence extraction, embedded HTML detection, body content validation, commentary detection).
+
+12. **OpenRouter `max_tokens` error (402)**: Always explicitly set `max_tokens` (e.g. `1000` or `4000`) on **every** `openai.chat.completions.create` call. If omitted, OpenRouter may default to the model's maximum context limit (e.g., 65536+), which triggers a 402 Insufficient Balance error for users whose OpenRouter account can't cover the theoretical maximum size, especially on premium models like Gemini.

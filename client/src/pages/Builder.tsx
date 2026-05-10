@@ -168,26 +168,22 @@ function Builder() {
 
         document.addEventListener('click', (e) => {
           const link = e.target.closest('a');
-          let isInternalAnchor = false;
           
           if (link) {
             const href = link.getAttribute('href');
             if (href && href.startsWith('#')) {
-              isInternalAnchor = true;
               e.preventDefault();
               const targetId = href.substring(1);
               if (targetId) {
                 const targetEl = document.getElementById(targetId);
                 if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
               }
-            } else {
+            } else if (href && !href.startsWith('javascript:')) {
               e.preventDefault();
+              window.open(href, '_blank');
             }
-          } else {
-            e.preventDefault();
           }
           
-          e.stopPropagation();
           if (e.target.tagName === 'BODY' || e.target.tagName === 'HTML') return;
           let src = undefined;
           let hasChildImage = false;
@@ -327,26 +323,21 @@ ${safeCode}
 
             document.addEventListener('click', (e) => {
               const link = e.target.closest('a');
-              let isInternalAnchor = false;
               
               if (link) {
                 const href = link.getAttribute('href');
                 if (href && href.startsWith('#')) {
-                  isInternalAnchor = true;
                   e.preventDefault();
                   const targetId = href.substring(1);
                   if (targetId) {
                     const targetEl = document.getElementById(targetId);
                     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
                   }
-                } else {
+                } else if (href && !href.startsWith('javascript:')) {
                   e.preventDefault();
+                  window.open(href, '_blank');
                 }
-              } else {
-                e.preventDefault();
               }
-
-              e.stopPropagation();
 
               if (e.target.tagName === 'BODY' || e.target.tagName === 'HTML') return;
 
