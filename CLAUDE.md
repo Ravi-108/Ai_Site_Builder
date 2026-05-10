@@ -314,7 +314,9 @@ The `Builder.tsx` preview iframe injects a custom script that intercepts clicks 
 
 4. **Duplicate routes in App.tsx**: There are some duplicate route entries (e.g., `/community`, `/view/:projectId`). Be aware when modifying routes.
 
-5. **Production deployment**: The client `.env` has a production URL on Render (`ai-site-builder-nmc2.onrender.com`) commented out. Toggle as needed.
+5. **Production deployment**:
+   - **Frontend (Vercel)**: A `vercel.json` file in the `client/` directory is required with a "rewrites" rule to route all requests to `/index.html` (this prevents 404 errors on direct navigation to React Router paths like `/preview/:id` or `/view/:id`).
+   - **Backend (Render)**: Update `corsOptions.origin` in `server.ts` to allow the Vercel frontend domain. The client `.env` has a production URL on Render (`ai-site-builder-nmc2.onrender.com`) commented out. Toggle as needed.
 
 6. **`req.userId`**: Added to the Express `Request` type via custom type declarations in `server/types/`. The `protect` middleware sets this.
 
