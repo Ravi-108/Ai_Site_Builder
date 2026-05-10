@@ -42,18 +42,22 @@ export default function View() {
 
     const scrollFixScript = `
       <script>
-        document.addEventListener('DOMContentLoaded', () => {
-          document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-              const targetId = this.getAttribute('href').substring(1);
-              if (!targetId) return;
-              const targetEl = document.getElementById(targetId);
-              if (targetEl) {
-                e.preventDefault();
-                targetEl.scrollIntoView({ behavior: 'smooth' });
+        document.addEventListener('click', (e) => {
+          const link = e.target.closest('a');
+          if (link) {
+            const href = link.getAttribute('href');
+            if (href && href.startsWith('#')) {
+              e.preventDefault();
+              const targetId = href.substring(1);
+              if (targetId) {
+                const targetEl = document.getElementById(targetId);
+                if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
               }
-            });
-          });
+            } else if (href && !href.startsWith('javascript:')) {
+              e.preventDefault();
+              window.open(href, '_blank');
+            }
+          }
         });
       </script>
     `;
@@ -113,6 +117,23 @@ export default function View() {
 ${safeCode}
           <\/script>
           <script>
+            document.addEventListener('click', (e) => {
+              const link = e.target.closest('a');
+              if (link) {
+                const href = link.getAttribute('href');
+                if (href && href.startsWith('#')) {
+                  e.preventDefault();
+                  const targetId = href.substring(1);
+                  if (targetId) {
+                    const targetEl = document.getElementById(targetId);
+                    if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
+                  }
+                } else if (href && !href.startsWith('javascript:')) {
+                  e.preventDefault();
+                  window.open(href, '_blank');
+                }
+              }
+            });
             try {
               const rawCode = document.getElementById('ai-code').textContent;
               const compiledCode = Babel.transform(rawCode, { 

@@ -1,5 +1,5 @@
-import { Loader2Icon, Cpu, Sparkles, Zap } from 'lucide-react';
-import React, { useState } from 'react';
+import { Loader2Icon, Cpu, Sparkles, Zap, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authClient } from '@/lib/auth-client';
 import API from '@/config/axios';
@@ -9,9 +9,34 @@ function Home() {
   const [input, setInput] = useState('');
   const [model, setModel] = useState('default');
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   
   const navigate = useNavigate();
   const { data: session } = authClient.useSession(); // Check if user is logged in
+
+  const loadingMessages = [
+    "Analyzing your request...",
+    "Generating HTML, CSS, JS, Images and other assets...",
+    "Uploading to NeonDB Storage...",
+    "Creating project and saving to database...",
+    "Done! Opening editor..."
+  ];
+
+  useEffect(() => {
+    if (!loading) return;
+    
+    setLoadingStep(0);
+    
+    const t1 = setTimeout(() => setLoadingStep(1), 2000);
+    const t2 = setTimeout(() => setLoadingStep(2), 12000);
+    const t3 = setTimeout(() => setLoadingStep(3), 16000);
+    
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [loading]);
 
   const onSubmitHandler = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,17 +63,19 @@ function Home() {
         model,
       });
 
+      setLoadingStep(4);
       toast.success('Website generated successfully!');
       
       // 4. Redirect the user to their newly created project editor
-      navigate(`/builder/${data.projectId}`); 
+      setTimeout(() => {
+        navigate(`/builder/${data.projectId}`); 
+      }, 1500);
       
     } catch (error: any) {
+      setLoading(false);
       // Show the exact error from our backend (e.g., "Add credit to create more projects")
       toast.error(error.response?.data?.message || 'Failed to generate website');
       console.log(error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -81,6 +108,20 @@ function Home() {
             required 
             disabled={loading} // Prevent typing while AI is generating
           />
+
+          {loading && (
+            <div className="flex items-center gap-3 text-indigo-400 py-3 px-2 border-t border-white/5 mt-2">
+              {loadingStep === 4 ? (
+                <CheckCircle2 className="size-5 text-emerald-400" />
+              ) : (
+                <Loader2Icon className="animate-spin size-5" />
+              )}
+              <span className={`text-sm font-medium ${loadingStep === 4 ? 'text-emerald-400' : 'animate-pulse'}`}>
+                {loadingMessages[loadingStep]}
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-4">
             <div className="flex flex-wrap items-center gap-2">
               <button 
