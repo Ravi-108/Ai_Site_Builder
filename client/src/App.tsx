@@ -29,8 +29,7 @@ const App = () => {
        <Route path ='/projects' element = {<MyProjects />} />
        <Route path ='/preview/:projectId' element = {<Preview />} />
        <Route path ='/preview/:projectId/:versionId' element = {<Preview />} />
-       <Route path ='/community' element = {<Community />} />
-       <Route path ='/view/:projectId' element = {<view />} />
+
        <Route path="/auth/:pathname" element={<AuthPage />} />
        <Route path='/account/settings' element={<Settings/>}/>
        <Route path="/builder/:projectId" element={<Builder />} />
