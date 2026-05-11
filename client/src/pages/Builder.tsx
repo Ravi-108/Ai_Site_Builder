@@ -170,16 +170,16 @@ function Builder() {
           const link = e.target.closest('a');
           
           if (link) {
+            e.preventDefault();
+            e.stopPropagation();
             const href = link.getAttribute('href');
             if (href && href.startsWith('#')) {
-              e.preventDefault();
               const targetId = href.substring(1);
               if (targetId) {
                 const targetEl = document.getElementById(targetId);
                 if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
               }
-            } else if (href && !href.startsWith('javascript:')) {
-              e.preventDefault();
+            } else if (href && href.trim() !== '' && !href.startsWith('javascript:')) {
               window.open(href, '_blank');
             }
           }
@@ -216,7 +216,7 @@ function Builder() {
               imgId: imgId
             }
           }, '*');
-        });
+        }, true);
 
         // Listen for manual updates from parent
         window.addEventListener('message', (event) => {
@@ -325,16 +325,16 @@ ${safeCode}
               const link = e.target.closest('a');
               
               if (link) {
+                e.preventDefault();
+                e.stopPropagation();
                 const href = link.getAttribute('href');
                 if (href && href.startsWith('#')) {
-                  e.preventDefault();
                   const targetId = href.substring(1);
                   if (targetId) {
                     const targetEl = document.getElementById(targetId);
                     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
                   }
-                } else if (href && !href.startsWith('javascript:')) {
-                  e.preventDefault();
+                } else if (href && href.trim() !== '' && !href.startsWith('javascript:')) {
                   window.open(href, '_blank');
                 }
               }
@@ -374,7 +374,7 @@ ${safeCode}
                   imgId: imgId
                 }
               }, '*');
-            });
+            }, true);
 
             // Listen for manual updates coming back from React App
             window.addEventListener('message', (event) => {
@@ -506,7 +506,7 @@ ${safeCode}
               title="Project Preview"
               srcDoc={generateIframeDoc(code)}
               className="w-full h-full bg-white"
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             />
           ) : (
             // The Editable Code View

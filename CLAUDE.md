@@ -264,7 +264,7 @@ The `Builder.tsx` preview iframe injects a custom script that intercepts clicks 
 - Users can edit **Text Content** (for text elements) or **Image URL** (for `<img>` tags).
 - Users can edit **Tailwind Classes** directly.
 - The manual editor includes a Presets Gallery for images, allowing users to quickly swap placeholder images with high-quality stock photos from Unsplash.
-- **Event Handling**: It uses event delegation without blocking default behavior for non-links, so the site's original JavaScript (e.g., mobile menus) remains functional during editing. External links are caught and opened in a new tab to avoid navigating the iframe away from the builder.
+- **Event Handling**: All click handlers inside the iframe use **capture phase** (`addEventListener(..., true)`) so they fire **before** any event handlers in the generated site's own JavaScript. For `<a>` tag clicks, `preventDefault()` and `stopPropagation()` are called immediately to prevent the generated site's JS from navigating the iframe (which would load the React app inside it). Anchor links (`#`) scroll smoothly; external/non-anchor links open in a new tab via `window.open()`. Non-link clicks (buttons, menus, etc.) are not blocked, preserving the site's interactive functionality. The iframe sandbox includes `allow-popups allow-popups-to-escape-sandbox` so `window.open()` actually works.
 
 ### Stripe Webhook
 

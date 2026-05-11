@@ -45,21 +45,21 @@ export default function Preview() {
         document.addEventListener('click', (e) => {
           const link = e.target.closest('a');
           if (link) {
+            e.preventDefault();
+            e.stopPropagation();
             const href = link.getAttribute('href');
             if (href && href.startsWith('#')) {
-              e.preventDefault();
               const targetId = href.substring(1);
               if (targetId) {
                 const targetEl = document.getElementById(targetId);
                 if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
               }
-            } else if (href && !href.startsWith('javascript:')) {
-              e.preventDefault();
+            } else if (href && href.trim() !== '' && !href.startsWith('javascript:')) {
               window.open(href, '_blank');
             }
           }
-        });
-      </script>
+        }, true);
+      <\/script>
     `;
 
     if (isHtmlDoc) {
@@ -120,20 +120,20 @@ ${safeCode}
             document.addEventListener('click', (e) => {
               const link = e.target.closest('a');
               if (link) {
+                e.preventDefault();
+                e.stopPropagation();
                 const href = link.getAttribute('href');
                 if (href && href.startsWith('#')) {
-                  e.preventDefault();
                   const targetId = href.substring(1);
                   if (targetId) {
                     const targetEl = document.getElementById(targetId);
                     if (targetEl) targetEl.scrollIntoView({ behavior: 'smooth' });
                   }
-                } else if (href && !href.startsWith('javascript:')) {
-                  e.preventDefault();
+                } else if (href && href.trim() !== '' && !href.startsWith('javascript:')) {
                   window.open(href, '_blank');
                 }
               }
-            });
+            }, true);
             try {
               const rawCode = document.getElementById('ai-code').textContent;
               const compiledCode = Babel.transform(rawCode, { 
@@ -176,7 +176,7 @@ ${safeCode}
         // 🚀 We now pass the code through the compiler!
         srcDoc={generateIframeDoc(code)}
         className="w-full h-full border-none bg-white"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
       />
     </div>
   );
