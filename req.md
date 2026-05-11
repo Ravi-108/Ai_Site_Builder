@@ -62,7 +62,11 @@ STRICT RULES:
    Do not break existing code. Do not refactor unrelated files. Avoid overengineering.
 
 Requested change:
-on clicking menu items from the generated website does not navigate to the other pages
+as my frontend is deployed on vercel and backend is deployed on render while clicking on the fullscreen button in the builder page the page shows this error "404: NOT_FOUND
+Code: NOT_FOUND
+ID: bom1::mhtw9-1778412392529-beb516167f2e" also while opening the community page and clicking on any project it gives this error "404: NOT_FOUND
+Code: NOT_FOUND
+ID: bom1::mhp6m-1778412425242-a1605b07b36a"
 
 Project context:
 CLAUDE.md file 

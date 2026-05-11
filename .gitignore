@@ -6,3 +6,12 @@ build
 .pdf
 *.docx
 .docx
+*.jpg
+*.png
+*.jpeg
+*.md
+.md
+*.zip
+.zip
+*.pdf
+*.docx

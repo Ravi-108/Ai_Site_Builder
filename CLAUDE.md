@@ -312,10 +312,10 @@ The `Builder.tsx` preview iframe injects a custom script that intercepts clicks 
 
 3. **CORS**: Currently configured to allow only `http://localhost:5173`. Update `corsOptions.origin` in `server.ts` when deploying.
 
-4. **Duplicate routes in App.tsx**: There are some duplicate route entries (e.g., `/community`, `/view/:projectId`). Be aware when modifying routes.
+4. **Duplicate routes in App.tsx**: Previously there were duplicate entries for `/community` and `/view/:projectId` (the latter used lowercase `<view />` — a native HTML element, not the View component). These have been removed; each route now appears exactly once.
 
 5. **Production deployment**:
-   - **Frontend (Vercel)**: A `vercel.json` file in the `client/` directory is required with a "rewrites" rule to route all requests to `/index.html` (this prevents 404 errors on direct navigation to React Router paths like `/preview/:id` or `/view/:id`).
+   - **Frontend (Vercel)**: A **root-level** `vercel.json` file configures the build to run from the `client/` subdirectory (`buildCommand`: `cd client && npm install && npm run build`, `outputDirectory`: `client/dist`). It includes a "rewrites" rule to route all requests to `/index.html` (this prevents 404 errors on direct navigation to React Router paths like `/preview/:id` or `/view/:id`). A secondary `client/vercel.json` with only the rewrites rule also exists for redundancy; the root-level file is authoritative.
    - **Backend (Render)**: Update `corsOptions.origin` in `server.ts` to allow the Vercel frontend domain. The client `.env` has a production URL on Render (`ai-site-builder-nmc2.onrender.com`) commented out. Toggle as needed.
 
 6. **`req.userId`**: Added to the Express `Request` type via custom type declarations in `server/types/`. The `protect` middleware sets this.
